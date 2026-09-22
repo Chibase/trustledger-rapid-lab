@@ -42,6 +42,9 @@ export type DimensionResult = {
 export type AssessmentResult = {
   overallScore: number;
   dimensionResults: DimensionResult[];
+  band: string;
+  priority: string;
+  description: string;
   strengths: string[];
   priorities: string[];
 };
