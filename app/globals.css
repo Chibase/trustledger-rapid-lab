@@ -24,3 +24,128 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/*
+ * TrustLedger Rapid Lab
+ * Print / Save as PDF styles
+ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 16mm 14mm 16mm 14mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #171717 !important;
+  }
+
+  body {
+    font-family: Arial, Helvetica, sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.5;
+  }
+
+  /*
+   * Keep the report within the printable page width.
+   */
+  main {
+    min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #ffffff !important;
+  }
+
+  main > div {
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  /*
+   * Hide interactive controls during printing.
+   */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  /*
+   * Avoid splitting important report sections across pages.
+   */
+  section,
+  article {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /*
+   * Keep headings with the content immediately following them.
+   */
+  h1,
+  h2,
+  h3,
+  h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /*
+   * Prevent individual paragraphs from being stranded
+   * away from their headings.
+   */
+  h2 + p,
+  h3 + p,
+  h4 + p {
+    break-before: avoid;
+    page-break-before: avoid;
+  }
+
+  /*
+   * Preserve borders and backgrounds in the generated PDF.
+   */
+  section,
+  article {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /*
+   * Make the report more compact on paper.
+   */
+  section {
+    margin-top: 18px !important;
+  }
+
+  /*
+   * Keep score bars visible when printing.
+   */
+  [style*="width"] {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /*
+   * Avoid accidental horizontal overflow.
+   */
+  * {
+    max-width: 100%;
+  }
+
+  /*
+   * Keep the footer together.
+   */
+  footer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /*
+   * Links should print as normal text rather than
+   * displaying browser-generated URLs.
+   */
+  a {
+    color: inherit !important;
+    text-decoration: none !important;
+  }
+}
