@@ -9,12 +9,14 @@ export default function Landing({
   onStart,
   onLoadDemo,
   onResume,
+  onOpenEngagements,
 }: {
   hasSavedAssessment: boolean;
   isCompleted: boolean;
   onStart: () => void;
   onLoadDemo: () => void;
   onResume: () => void;
+  onOpenEngagements: () => void;
 }) {
   return (
     <div className="animate-fade-in">
@@ -55,6 +57,18 @@ export default function Landing({
               >
                 Load Demonstration Project
               </button>
+            </div>
+            <div className="mt-6">
+              <button
+                onClick={onOpenEngagements}
+                className="text-sm font-medium text-[#0f766e] underline underline-offset-4 transition-colors hover:text-[#115e59] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] focus-visible:ring-offset-2 rounded"
+              >
+                Open the engagement register →
+              </button>
+              <p className="mt-1 text-sm text-gray-500">
+                Record stakeholder and project interactions alongside your
+                readiness assessment.
+              </p>
             </div>
           </div>
         </div>
