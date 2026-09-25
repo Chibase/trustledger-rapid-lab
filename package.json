@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "validate:assessment": "tsx lib/assessment/validate.ts"
+    "validate:assessment": "tsx lib/assessment/validate.ts",
+    "validate:risk": "tsx lib/stakeholder-risk/validate.ts"
   },
   "dependencies": {
     "next": "16.3.5",
