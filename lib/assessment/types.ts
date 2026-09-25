@@ -103,4 +103,5 @@ export type AssessmentStage =
   | "profile"
   | "questionnaire"
   | "results"
-  | "report";
+  | "report"
+  | "engagements";

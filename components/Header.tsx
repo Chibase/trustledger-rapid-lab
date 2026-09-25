@@ -1,9 +1,11 @@
 export default function Header({
   stage,
   onReset,
+  onOpenEngagements,
 }: {
   stage: string;
   onReset: () => void;
+  onOpenEngagements: () => void;
 }) {
   return (
     <header className="no-print sticky top-0 z-50 bg-white border-b border-gray-200">
@@ -23,6 +25,17 @@ export default function Header({
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <button
+              onClick={onOpenEngagements}
+              aria-current={stage === "engagements" ? "page" : undefined}
+              className={`text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#0f766e] focus-visible:ring-offset-2 rounded ${
+                stage === "engagements"
+                  ? "font-semibold text-[#0f766e]"
+                  : "text-gray-500 hover:text-gray-900"
+              }`}
+            >
+              Engagements
+            </button>
             {stage !== "landing" && (
               <button
                 onClick={onReset}

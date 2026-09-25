@@ -16,12 +16,18 @@ import {
   type ResponseValue,
   type AssessmentStage,
 } from "@/lib/assessment";
+import {
+  loadEngagements,
+  saveEngagements,
+  type Engagement,
+} from "@/lib/engagements";
 
 import Landing from "@/components/Landing";
 import ProjectProfileForm from "@/components/ProjectProfileForm";
 import Questionnaire from "@/components/Questionnaire";
 import ResultsView from "@/components/ResultsView";
 import ReportView from "@/components/ReportView";
+import EngagementsView from "@/components/EngagementsView";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 
@@ -39,6 +45,7 @@ function getInitialStage(saved: Assessment | null): AssessmentStage {
 
 export default function Home() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [stage, setStage] = useState<AssessmentStage>("landing");
   const [mounted, setMounted] = useState(false);
 
@@ -46,6 +53,7 @@ export default function Home() {
     setMounted(true);
     const saved = getInitialAssessment();
     setAssessment(saved);
+    setEngagements(loadEngagements());
     setStage(getInitialStage(saved));
   }
 
@@ -119,6 +127,19 @@ export default function Home() {
     setStage("landing");
   };
 
+  const handleEngagementsChange = useCallback((next: Engagement[]) => {
+    setEngagements(next);
+    saveEngagements(next);
+  }, []);
+
+  const handleOpenEngagements = () => {
+    setStage("engagements");
+  };
+
+  const handleOpenProjectFromEngagement = () => {
+    setStage(assessment?.completed ? "results" : "profile");
+  };
+
   const handleResume = () => {
     if (!assessment) return;
     if (assessment.completed) {
@@ -140,7 +161,11 @@ export default function Home() {
 
   return (
     <div className="flex flex-1 flex-col min-h-screen">
-      <Header stage={stage} onReset={handleReset} />
+      <Header
+        stage={stage}
+        onReset={handleReset}
+        onOpenEngagements={handleOpenEngagements}
+      />
       <main className="flex-1 w-full">
         {stage === "landing" && (
           <Landing
@@ -149,6 +174,7 @@ export default function Home() {
             onStart={handleStart}
             onLoadDemo={handleLoadDemo}
             onResume={handleResume}
+            onOpenEngagements={handleOpenEngagements}
           />
         )}
         {stage === "profile" && assessment && (
@@ -178,6 +204,15 @@ export default function Home() {
           <ReportView
             assessment={assessment}
             onBack={handleBackToResults}
+          />
+        )}
+        {stage === "engagements" && (
+          <EngagementsView
+            engagements={engagements}
+            assessment={assessment}
+            isLoading={!mounted}
+            onChange={handleEngagementsChange}
+            onOpenProject={handleOpenProjectFromEngagement}
           />
         )}
       </main>
