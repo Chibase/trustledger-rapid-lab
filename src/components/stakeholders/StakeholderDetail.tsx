@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -30,7 +30,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Edit2, X } from 'lucide-react';
+import { Edit2 } from 'lucide-react';
+import type { Stakeholder } from '@/hooks/useStakeholders';
 
 const stakeholderSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -39,15 +40,18 @@ const stakeholderSchema = z.object({
   organization: z.string().optional(),
   contact: z.string().optional(),
   location: z.string().optional(),
-  projects: z.array(z.string()).optional().default([]),
+  projectsText: z.string().optional(),
   notes: z.string().optional(),
 });
 
 type StakeholderFormData = z.infer<typeof stakeholderSchema>;
 
-interface Stakeholder extends StakeholderFormData {
-  id: string;
-  createdAt: string;
+function parseProjects(value?: string): string[] {
+  if (!value?.trim()) return [];
+  return value
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
 }
 
 interface StakeholderDetailProps {
@@ -75,23 +79,41 @@ export function StakeholderDetail({
       organization: stakeholder.organization || '',
       contact: stakeholder.contact || '',
       location: stakeholder.location || '',
-      projects: stakeholder.projects || [],
+      projectsText: (stakeholder.projects || []).join(', '),
       notes: stakeholder.notes || '',
     },
   });
 
+  useEffect(() => {
+    form.reset({
+      name: stakeholder.name,
+      type: stakeholder.type,
+      status: stakeholder.status,
+      organization: stakeholder.organization || '',
+      contact: stakeholder.contact || '',
+      location: stakeholder.location || '',
+      projectsText: (stakeholder.projects || []).join(', '),
+      notes: stakeholder.notes || '',
+    });
+    setIsEditing(false);
+  }, [stakeholder, form]);
+
   const onSubmit = async (data: StakeholderFormData) => {
     setIsSubmitting(true);
     try {
+      const { projectsText, ...rest } = data;
       const updated: Stakeholder = {
         ...stakeholder,
-        ...data,
+        ...rest,
+        projects: parseProjects(projectsText),
       };
       onUpdate(updated);
       toast.success('Stakeholder updated successfully');
       setIsEditing(false);
     } catch (error) {
-      toast.error('Failed to update stakeholder');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to update stakeholder'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -122,7 +144,7 @@ export function StakeholderDetail({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1">
@@ -148,8 +170,7 @@ export function StakeholderDetail({
         {isEditing ? (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Name and Type */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="name"
@@ -189,8 +210,7 @@ export function StakeholderDetail({
                 />
               </div>
 
-              {/* Status and Organization */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="status"
@@ -229,8 +249,7 @@ export function StakeholderDetail({
                 />
               </div>
 
-              {/* Contact and Location */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="contact"
@@ -260,7 +279,23 @@ export function StakeholderDetail({
                 />
               </div>
 
-              {/* Notes */}
+              <FormField
+                control={form.control}
+                name="projectsText"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Project relationship</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Project IDs, comma-separated (e.g. P001, P002)"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="notes"
@@ -279,8 +314,7 @@ export function StakeholderDetail({
                 )}
               />
 
-              {/* Actions */}
-              <div className="flex justify-end gap-3 pt-4">
+              <div className="flex flex-col-reverse justify-end gap-3 pt-4 sm:flex-row">
                 <Button
                   type="button"
                   variant="outline"
@@ -299,8 +333,7 @@ export function StakeholderDetail({
           </Form>
         ) : (
           <div className="space-y-6">
-            {/* Overview */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <h4 className="text-sm font-semibold text-muted-foreground">Type</h4>
                 <p className="mt-1 text-foreground">{getTypeLabel(stakeholder.type)}</p>
@@ -317,80 +350,71 @@ export function StakeholderDetail({
 
             <Separator />
 
-            {/* Contact Information */}
-            {(stakeholder.organization || stakeholder.contact || stakeholder.location) && (
-              <>
-                <div className="space-y-3">
-                  {stakeholder.organization && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-muted-foreground">
-                        Organization / Affiliation
-                      </h4>
-                      <p className="mt-1 text-foreground">{stakeholder.organization}</p>
-                    </div>
-                  )}
-                  {stakeholder.contact && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-muted-foreground">
-                        Contact / Representative
-                      </h4>
-                      <p className="mt-1 text-foreground">{stakeholder.contact}</p>
-                    </div>
-                  )}
-                  {stakeholder.location && (
-                    <div>
-                      <h4 className="text-sm font-semibold text-muted-foreground">
-                        Location / Geography
-                      </h4>
-                      <p className="mt-1 text-foreground">{stakeholder.location}</p>
-                    </div>
-                  )}
-                </div>
-                <Separator />
-              </>
-            )}
-
-            {/* Projects */}
-            {stakeholder.projects && stakeholder.projects.length > 0 && (
-              <>
-                <div>
-                  <h4 className="text-sm font-semibold text-muted-foreground">
-                    Associated Projects
-                  </h4>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {stakeholder.projects.map((project) => (
-                      <Badge key={project} variant="secondary">
-                        {project}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <Separator />
-              </>
-            )}
-
-            {/* Notes */}
-            {stakeholder.notes && (
+            <div className="space-y-3">
               <div>
-                <h4 className="text-sm font-semibold text-muted-foreground">Notes</h4>
-                <p className="mt-2 whitespace-pre-wrap text-foreground">{stakeholder.notes}</p>
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Organization / Affiliation
+                </h4>
+                <p className="mt-1 text-foreground">
+                  {stakeholder.organization || '—'}
+                </p>
               </div>
-            )}
-
-            {/* Future Sections Placeholder */}
-            <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-              <p className="text-xs font-semibold text-muted-foreground">
-                FUTURE CAPABILITIES
-              </p>
-              <div className="space-y-2 text-xs text-muted-foreground">
-                <p>• Related engagements</p>
-                <p>• Related commitments</p>
-                <p>• Related incidents / grievances</p>
-                <p>• Relevant evidence links</p>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Contact / Representative
+                </h4>
+                <p className="mt-1 text-foreground">
+                  {stakeholder.contact || '—'}
+                </p>
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-muted-foreground">
+                  Location / Geography
+                </h4>
+                <p className="mt-1 text-foreground">
+                  {stakeholder.location || '—'}
+                </p>
               </div>
             </div>
 
-            {/* Actions */}
+            <Separator />
+
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">
+                Associated Projects
+              </h4>
+              {stakeholder.projects && stakeholder.projects.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {stakeholder.projects.map((project) => (
+                    <Badge key={project} variant="secondary">
+                      {project}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  No project relationship recorded yet.
+                </p>
+              )}
+            </div>
+
+            <Separator />
+
+            <div>
+              <h4 className="text-sm font-semibold text-muted-foreground">Notes</h4>
+              <p className="mt-2 whitespace-pre-wrap text-foreground">
+                {stakeholder.notes || '—'}
+              </p>
+            </div>
+
+            <div className="rounded-lg border border-border bg-muted/30 p-4">
+              <p className="text-xs text-muted-foreground">
+                Engagements, commitments, incidents/grievances and evidence links
+                appear here when those modules link records to this stakeholder.
+                No related operational records are available in this build yet.
+              </p>
+            </div>
+
             <div className="flex justify-end gap-3 pt-4">
               <Button variant="outline" onClick={() => onOpenChange(false)}>
                 Close

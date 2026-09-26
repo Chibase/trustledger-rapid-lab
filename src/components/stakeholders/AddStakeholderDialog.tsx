@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
+import type { Stakeholder } from '@/hooks/useStakeholders';
 
 const stakeholderSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -36,16 +37,24 @@ const stakeholderSchema = z.object({
   organization: z.string().optional(),
   contact: z.string().optional(),
   location: z.string().optional(),
-  projects: z.array(z.string()).optional().default([]),
+  projectsText: z.string().optional(),
   notes: z.string().optional(),
 });
 
 type StakeholderFormData = z.infer<typeof stakeholderSchema>;
 
+function parseProjects(value?: string): string[] {
+  if (!value?.trim()) return [];
+  return value
+    .split(',')
+    .map((p) => p.trim())
+    .filter(Boolean);
+}
+
 interface AddStakeholderDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (stakeholder: Omit<any, 'id' | 'createdAt'>) => void;
+  onSave: (stakeholder: Omit<Stakeholder, 'id' | 'createdAt'>) => void;
 }
 
 export function AddStakeholderDialog({
@@ -64,20 +73,41 @@ export function AddStakeholderDialog({
       organization: '',
       contact: '',
       location: '',
-      projects: [],
+      projectsText: '',
       notes: '',
     },
   });
 
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        name: '',
+        type: 'individual',
+        status: 'active',
+        organization: '',
+        contact: '',
+        location: '',
+        projectsText: '',
+        notes: '',
+      });
+    }
+  }, [open, form]);
+
   const onSubmit = async (data: StakeholderFormData) => {
     setIsSubmitting(true);
     try {
-      onSave(data);
+      const { projectsText, ...rest } = data;
+      onSave({
+        ...rest,
+        projects: parseProjects(projectsText),
+      });
       toast.success('Stakeholder added successfully');
       form.reset();
       onOpenChange(false);
     } catch (error) {
-      toast.error('Failed to add stakeholder');
+      toast.error(
+        error instanceof Error ? error.message : 'Failed to add stakeholder'
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -85,7 +115,7 @@ export function AddStakeholderDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-h-[90vh] max-w-2xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add stakeholder</DialogTitle>
           <DialogDescription>
@@ -95,8 +125,7 @@ export function AddStakeholderDialog({
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Name and Type */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="name"
@@ -136,8 +165,7 @@ export function AddStakeholderDialog({
               />
             </div>
 
-            {/* Status and Organization */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="status"
@@ -176,8 +204,7 @@ export function AddStakeholderDialog({
               />
             </div>
 
-            {/* Contact and Location */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
                 name="contact"
@@ -207,7 +234,23 @@ export function AddStakeholderDialog({
               />
             </div>
 
-            {/* Notes */}
+            <FormField
+              control={form.control}
+              name="projectsText"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Project relationship</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Project IDs, comma-separated (e.g. P001, P002)"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <FormField
               control={form.control}
               name="notes"
@@ -226,8 +269,7 @@ export function AddStakeholderDialog({
               )}
             />
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex flex-col-reverse justify-end gap-3 pt-4 sm:flex-row">
               <Button
                 type="button"
                 variant="outline"

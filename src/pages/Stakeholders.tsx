@@ -18,27 +18,26 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, AlertCircle } from 'lucide-react';
+import { Plus, Search, AlertCircle, Loader2 } from 'lucide-react';
 import { AddStakeholderDialog } from '@/components/stakeholders/AddStakeholderDialog';
 import { StakeholderDetail } from '@/components/stakeholders/StakeholderDetail';
-import { useStakeholders } from '@/hooks/useStakeholders';
+import {
+  useStakeholders,
+  type Stakeholder,
+} from '@/hooks/useStakeholders';
 
 type SortField = 'name' | 'type' | 'organization';
 
-interface Stakeholder {
-  id: string;
-  name: string;
-  type: 'individual' | 'organization' | 'community' | 'government';
-  status: 'active' | 'inactive' | 'pending';
-  organization?: string;
-  contact?: string;
-  location?: string;
-  projects?: string[];
-  notes?: string;
-  createdAt: string;
-}
-
 export default function Stakeholders() {
+  const {
+    stakeholders,
+    loading,
+    error,
+    reload,
+    addStakeholder,
+    updateStakeholder,
+  } = useStakeholders();
+
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
@@ -47,46 +46,8 @@ export default function Stakeholders() {
   const [selectedStakeholder, setSelectedStakeholder] = useState<Stakeholder | null>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
 
-  // Sample data - in production this would come from Supabase
-  const [stakeholders, setStakeholders] = useState<Stakeholder[]>([
-    {
-      id: '1',
-      name: 'Sarah Johnson',
-      type: 'individual',
-      status: 'active',
-      organization: 'Community Development Council',
-      contact: 'sarah@cdc.org',
-      location: 'District 5',
-      projects: ['P001', 'P002'],
-      notes: 'Key community liaison',
-      createdAt: '2024-01-15',
-    },
-    {
-      id: '2',
-      name: 'Regional Development Authority',
-      type: 'government',
-      status: 'active',
-      organization: 'Ministry of Infrastructure',
-      location: 'Regional Office',
-      projects: ['P001'],
-      notes: 'Primary regulatory stakeholder',
-      createdAt: '2024-01-10',
-    },
-    {
-      id: '3',
-      name: 'Local Environmental Coalition',
-      type: 'community',
-      status: 'active',
-      location: 'District 5',
-      projects: ['P002'],
-      notes: 'Environmental impact monitoring',
-      createdAt: '2024-02-01',
-    },
-  ]);
-
-  // Filter and sort
   const filtered = useMemo(() => {
-    let result = stakeholders.filter((s) => {
+    const result = stakeholders.filter((s) => {
       const matchesSearch =
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         s.organization?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -98,7 +59,6 @@ export default function Stakeholders() {
       return matchesSearch && matchesType && matchesStatus;
     });
 
-    // Sort
     result.sort((a, b) => {
       if (sortBy === 'name') {
         return a.name.localeCompare(b.name);
@@ -114,18 +74,14 @@ export default function Stakeholders() {
   }, [stakeholders, searchTerm, typeFilter, statusFilter, sortBy]);
 
   const handleAddStakeholder = (newStakeholder: Omit<Stakeholder, 'id' | 'createdAt'>) => {
-    const stakeholder: Stakeholder = {
-      ...newStakeholder,
-      id: String(Math.max(...stakeholders.map((s) => parseInt(s.id) || 0)) + 1),
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setStakeholders([...stakeholders, stakeholder]);
+    const created = addStakeholder(newStakeholder);
     setIsAddDialogOpen(false);
+    return created;
   };
 
   const handleUpdateStakeholder = (updated: Stakeholder) => {
-    setStakeholders(stakeholders.map((s) => (s.id === updated.id ? updated : s)));
-    setSelectedStakeholder(updated);
+    const saved = updateStakeholder(updated);
+    setSelectedStakeholder(saved);
   };
 
   const openDetail = (stakeholder: Stakeholder) => {
@@ -183,12 +139,14 @@ export default function Stakeholders() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-9"
+                  aria-label="Search stakeholders"
                 />
               </div>
             </div>
             <Button
               onClick={() => setIsAddDialogOpen(true)}
               className="gap-2 whitespace-nowrap"
+              disabled={loading || !!error}
             >
               <Plus className="h-4 w-4" />
               Add stakeholder
@@ -200,7 +158,7 @@ export default function Stakeholders() {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground">Type:</span>
               <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40" aria-label="Filter by type">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -216,7 +174,7 @@ export default function Stakeholders() {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground">Status:</span>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40" aria-label="Filter by status">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -231,7 +189,7 @@ export default function Stakeholders() {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground">Sort:</span>
               <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortField)}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-full sm:w-40" aria-label="Sort stakeholders">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -244,20 +202,44 @@ export default function Stakeholders() {
           </div>
         </div>
 
-        {/* Registry */}
-        {filtered.length === 0 ? (
+        {/* Loading */}
+        {loading ? (
+          <Card className="border-border bg-card p-12 text-center">
+            <div className="mx-auto flex max-w-md flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" aria-hidden />
+              <p className="text-sm text-muted-foreground" role="status">
+                Loading stakeholders…
+              </p>
+            </div>
+          </Card>
+        ) : error ? (
+          <Card className="border-border bg-card p-12 text-center">
+            <div className="mx-auto max-w-md">
+              <div className="mb-4 flex justify-center">
+                <AlertCircle className="h-12 w-12 text-destructive" aria-hidden />
+              </div>
+              <h2 className="mb-2 text-lg font-semibold text-foreground">
+                Unable to load stakeholders
+              </h2>
+              <p className="mb-6 text-sm text-muted-foreground">{error}</p>
+              <Button onClick={reload} variant="outline">
+                Try again
+              </Button>
+            </div>
+          </Card>
+        ) : filtered.length === 0 ? (
           stakeholders.length === 0 ? (
-            // Empty state
             <Card className="border-border bg-card p-12 text-center">
               <div className="mx-auto max-w-md">
                 <div className="mb-4 flex justify-center">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground" />
+                  <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
                 </div>
                 <h2 className="mb-2 text-lg font-semibold text-foreground">
                   No stakeholders yet
                 </h2>
                 <p className="mb-6 text-sm text-muted-foreground">
-                  The Stakeholder Registry records who your project affects or works with. Start by adding your first stakeholder.
+                  Stakeholder records are the people, organisations and communities your work affects.
+                  Once added, they can be linked from Engagements, Commitments and Incidents workflows.
                 </p>
                 <Button
                   onClick={() => setIsAddDialogOpen(true)}
@@ -269,11 +251,10 @@ export default function Stakeholders() {
               </div>
             </Card>
           ) : (
-            // No results state
             <Card className="border-border bg-card p-12 text-center">
               <div className="mx-auto max-w-md">
                 <div className="mb-4 flex justify-center">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground" />
+                  <AlertCircle className="h-12 w-12 text-muted-foreground" aria-hidden />
                 </div>
                 <h2 className="mb-2 text-lg font-semibold text-foreground">
                   No results
@@ -303,7 +284,16 @@ export default function Stakeholders() {
                     <TableRow
                       key={stakeholder.id}
                       onClick={() => openDetail(stakeholder)}
-                      className="cursor-pointer border-b border-border hover:bg-muted/50"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          openDetail(stakeholder);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`View ${stakeholder.name}`}
+                      className="cursor-pointer border-b border-border hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       <TableCell className="font-medium text-foreground">
                         {stakeholder.name}
@@ -323,7 +313,9 @@ export default function Stakeholders() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {stakeholder.projects?.length || 0}
+                        {stakeholder.projects?.length
+                          ? stakeholder.projects.join(', ')
+                          : '—'}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -334,7 +326,6 @@ export default function Stakeholders() {
         )}
       </div>
 
-      {/* Dialogs */}
       <AddStakeholderDialog
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
